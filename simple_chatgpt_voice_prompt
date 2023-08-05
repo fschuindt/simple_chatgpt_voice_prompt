@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+mkdir -p ./recordings/
+
+filename=`date +%Y-%m-%d_%H-%M-%S`
+
+parecord ./recordings/$filename.wav
+ffmpeg -i ./recordings/$filename.wav -map 0:a:0 -b:a 96k ./recordings/$filename.mp3 -hide_banner -loglevel error
+text=$(whisper transcribe ./recordings/$filename.mp3)
+
+echo -e "\n\nPrompt:"
+echo $text
+
+echo -e "\nResponse:"
+response=$(echo $text | sgpt | tr -d '\n')
+echo $response
+
+curl -s -X POST https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM \
+     -H 'Content-Type: application/json' \
+     -H "xi-api-key: ${ELEVENLABS_API_KEY}" \
+     -d "{\"text\": \"${response}\", \"model_id\": \"eleven_monolingual_v1\", \"voice_settings\": {\"stability\": 0, \"similarity_boost\": 0}}" \
+     --output ./recordings/$filename.mpeg > /dev/null
+
+ffplay ./recordings/$filename.mpeg -nodisp -autoexit -hide_banner -loglevel error
